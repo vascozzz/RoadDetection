@@ -20,6 +20,21 @@ void RoadDetection::setFile(Mat original)
 	original.copyTo(this->original);
 }
 
+double RoadDetection::getAngleBetweenPoints(Point pt1, Point pt2)
+{
+	double xDiff = pt2.x - pt1.x;
+	double yDiff = pt2.y - pt1.y;
+
+	if (atan2(yDiff, xDiff) < 0)
+	{
+		return atan2(yDiff, xDiff) + 2 * CV_PI;
+	}
+	else
+	{
+		return atan2(yDiff, xDiff);
+	}
+}
+
 void RoadDetection::method1()
 {
 	Mat originalImg, grayImg, erodedImg, dilatedImg, morphImg, pathImg;
@@ -66,9 +81,10 @@ void RoadDetection::method1()
 
 void RoadDetection::method2()
 {
-	Mat originalImg, blurredImg, contoursImg, contoursInvImg, resultImg, houghImg;
+	Mat originalImg, testImg, blurredImg, contoursImg, contoursInvImg, houghImg, houghPImg, pathImg;
+	vector<Vec2f> houghLines;
+	vector<Vec4i> houghPLines;
 	int houghVote = 200;
-	vector<Vec2f> lines;
 
 	// save a copy of the original image
 	original.copyTo(originalImg);
@@ -80,43 +96,66 @@ void RoadDetection::method2()
 	Canny(blurredImg, contoursImg, 50, 350);
 	threshold(contoursImg, contoursInvImg, 128, 255, THRESH_BINARY_INV);
 
-	// hough voting process
-	while (lines.size() < 5 && houghVote > 0){
-		HoughLines(contoursImg, lines, 1, CV_PI / 180, houghVote, 0, 0);
+	// hough transform, with voting process ensuring at least 5 different lines
+	while (houghLines.size() < 5 && houghVote > 0){
+		HoughLines(contoursImg, houghLines, 1, CV_PI / 180, houghVote, 0, 0);
 		houghVote -= 5;
 	}
 
-	resultImg = Mat(contoursImg.rows, contoursImg.cols, CV_8U, Scalar(255));
-	originalImg.copyTo(resultImg);
-
-	// display hough result
-	vector<Vec2f>::const_iterator it = lines.begin();
+	// display hough transform lines
 	houghImg = Mat(originalImg.size(), CV_8U, Scalar(0));
 
-	while (it != lines.end())
+	for (size_t i = 0; i < houghLines.size(); i++)
 	{
-		float rho = (*it)[0];
-		float theta = (*it)[1];
+		float rho = houghLines[i][0];
+		float theta = houghLines[i][1];
 
-		// could make use of angle to eliminate some lines
-		// if (theta < CV_PI / 20. || theta > 19. * CV_PI / 20.){}
-		Point pt1(rho / cos(theta), 0);
-		Point pt2((rho - resultImg.rows * sin(theta)) / cos(theta), resultImg.rows);
+		// filter out horizontal lines by comparing theta (angle of lines perpendicular to the detected line)
+		if (theta < 1.25f || theta > 1.85f)
+		{
+			Point pt1, pt2;
+			double a = cos(theta);
+			double b = sin(theta);
+			double x0 = a*rho;
+			double y0 = b*rho;
 
-		line(resultImg, pt1, pt2, Scalar(255), 8);
-		line(houghImg, pt1, pt2, Scalar(255), 8);
+			pt1.x = cvRound(x0 + 1000 * (-b));
+			pt1.y = cvRound(y0 + 1000 * (a));
+			pt2.x = cvRound(x0 - 1000 * (-b));
+			pt2.y = cvRound(y0 - 1000 * (a));
 
-		++it;
+			line(houghImg, pt1, pt2, Scalar(255, 0, 0), 3, CV_AA);
+		}
 	}
+
+	// probabilistic hough
+	houghPImg = Mat(originalImg.size(), CV_8U, Scalar(0));
+	HoughLinesP(contoursImg, houghPLines, 1, CV_PI / 180, 30, 60, 10);
+
+	for (size_t i = 0; i < houghPLines.size(); i++)
+	{
+		Vec4i houghLine = houghPLines[i];
+		Point pt1 = Point(houghLine[0], houghLine[1]);
+		Point pt2 = Point(houghLine[2], houghLine[3]);
+		double angle = getAngleBetweenPoints(pt1, pt2);
+		
+		// filter out horizontal lines by comparing angle between points
+		if (angle > 0.1 && angle < 6)
+		{
+			line(houghPImg, pt1, pt2, Scalar(255, 0, 0), 3, CV_AA);
+		}
+	}
+
+	// bitwise AND of the two hough transforms
+	pathImg = Mat(originalImg.size(), CV_8U, Scalar(0));
+	bitwise_and(houghImg, houghPImg, pathImg);
 
 	// display
 	namedWindow("input");
-	namedWindow("contours");
 	namedWindow("path");
 
 	imshow("input", originalImg);
-	imshow("contours", contoursInvImg);
-	imshow("path", resultImg);
+	imshow("path", pathImg);
 }
 
 int RoadDetection::imgExample()

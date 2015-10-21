@@ -6,8 +6,6 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include "DetectionTimer.h"
 
-#define PI 3.1415926;
-
 using namespace std;
 using namespace cv;
 
@@ -15,6 +13,7 @@ class RoadDetection
 {
 private:
 	Mat original;
+	double getAngleBetweenPoints(Point pt1, Point pt2);
 public:
 	RoadDetection(){};
 	RoadDetection(String filePath);

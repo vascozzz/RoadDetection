@@ -158,6 +158,64 @@ void RoadDetection::method2()
 	imshow("path", pathImg);
 }
 
+void RoadDetection::method3()
+{
+	Mat src, gray, contours, grayhc;
+	vector<Vec4i> lines;
+	const double scale = 2.0;
+
+	// save a copy of the src image
+	original.copyTo(src);
+
+	// create a grayscaled version of src image
+	cvtColor(src, gray, CV_BGR2GRAY);
+
+	// create a scaled grayscaled and high contrast image (used to detect cars)
+	grayhc = Mat(Size(cvRound(src.cols / scale), cvRound(src.rows / scale)), CV_8U, 1);
+	resize(gray, grayhc, grayhc.size(), 0, 0, InterpolationFlags::INTER_LINEAR);
+	equalizeHist(grayhc, grayhc);
+
+	// smoothen grayscaled image and create contours image
+	GaussianBlur(gray, gray, Size(5, 5), 0);
+	Canny(gray, contours, 50, 200);
+
+	// Calculate lines with Hough Probabilistic
+	HoughLinesP(contours, lines, 1, CV_PI / 180, 150, 250, 100);
+
+	// Process the lines
+	for (int i = 0; i < lines.size(); i++)
+	{
+		//p1x p1y p2x p2y
+		// 0   1   2   3
+		int dx = lines[i][2] - lines[i][0];
+		int dy = lines[i][3] - lines[i][1];
+
+		//get angle
+		double angle = atan2(dy, dx) < 0 ? atan2(dy, dx) * 180 / CV_PI + 360 : atan2(dy, dx) * 180 / CV_PI;
+			
+		if (abs(angle) < 10 || abs(angle) > 350)
+			continue;
+
+		if (lines[i][1] > lines[i][3] + 50 || lines[i][1] < lines[i][3] - 50)
+		{
+			Point p1(lines[i][0], lines[i][1]);
+			Point p2(lines[i][2], lines[i][3]);
+			line(src, p1, p2, Scalar(0, 0, 255), 2, CV_AA);
+		}
+	}
+
+	//display
+	namedWindow("src");
+	namedWindow("gray");
+	namedWindow("equalized");
+	namedWindow("canny");
+
+	imshow("src", src);
+	imshow("gray", gray);
+	imshow("equalized", grayhc);
+	imshow("canny", contours);
+}
+
 int RoadDetection::imgExample()
 {
 	Mat img1, img2, img3;

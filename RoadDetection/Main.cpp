@@ -24,6 +24,6 @@ int main(int argc, char** argv)
 	String filePath = "../Assets/" + (String)argv[2] + ".png";
 	RoadDetection detector(filePath);
 
-	detector.method2();
+	detector.method3();
 	waitKey(0);
 }

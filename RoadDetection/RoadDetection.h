@@ -24,6 +24,7 @@ public:
 	void setFile(Mat original);
 	void method1();
 	void method2();
+	void method3();
 
 	int imgExample();
 	int videoExample();

@@ -9,21 +9,41 @@
 using namespace std;
 using namespace cv;
 
-/*
-* @param argv[1] - method
-* @param argv[2] - image path
-*/
+RoadDetection roadDetector;
+
 int main(int argc, char** argv)
 {
-	if (argc < 3)
+	if (argc < 2)
 	{
-		cout << "Usage example RoadDetection.exe -method -imagepath." << endl;
+		cout << "Usage example RoadDetection.exe -method --imagepath." << endl;
 		return -1;
 	}
 
-	String filePath = "../Assets/" + (String)argv[2] + ".png";
-	RoadDetection detector(filePath);
+	if ((string)argv[1] == "vid")
+	{
+		VideoCapture  cap = VideoCapture("../Assets/" + (string)argv[2]);
 
-	detector.method3();
+		while (waitKey(10) < 0)
+		{
+			Mat frame;
+			cap >> frame;
+			
+			roadDetector = RoadDetection(frame);
+			roadDetector.detectAll();
+		}
+	}
+
+	else if ((string)argv[1] == "cam")
+	{
+
+	}
+
+	else if ((string)argv[1] == "img")
+	{
+		Mat frame;
+		roadDetector = RoadDetection("../Assets/" + (string)argv[2]);
+		roadDetector.detectAll();
+	}
+
 	waitKey(0);
 }

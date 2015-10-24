@@ -45,4 +45,5 @@ public:
 	void method3();
 
 	void detectAll();
+	void displayControls();
 };

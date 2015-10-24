@@ -9,40 +9,46 @@
 using namespace std;
 using namespace cv;
 
-RoadDetection roadDetector;
-
 int main(int argc, char** argv)
 {
-	if (argc < 2)
+	if (argc < 3)
 	{
-		cout << "Usage example RoadDetection.exe -method --imagepath." << endl;
+		cout << "Usage example: RoadDetection.exe -method -filepath" << endl;
+		cout << "Available methods: img, vid" << endl;
 		return -1;
 	}
 
-	if ((string)argv[1] == "vid")
+	RoadDetection roadDetector;
+	String method = (string)argv[1];
+	String filePath = (string)argv[2];
+
+	// image processing
+	if (method == "img")
 	{
-		VideoCapture  cap = VideoCapture("../Assets/" + (string)argv[2]);
+		roadDetector = RoadDetection("../Assets/" + filePath);
+		roadDetector.detectAll();
+		roadDetector.displayControls();
+	}
+
+	// video processing
+	else if (method == "vid")
+	{
+		VideoCapture cap = VideoCapture("../Assets/" + filePath);
+
+		if (!cap.isOpened())
+		{
+			cout << "Unable to read from file. Now exiting..." << endl;
+			return -1;
+		}
 
 		while (waitKey(10) < 0)
 		{
 			Mat frame;
 			cap >> frame;
-			
+
 			roadDetector = RoadDetection(frame);
 			roadDetector.detectAll();
 		}
-	}
-
-	else if ((string)argv[1] == "cam")
-	{
-
-	}
-
-	else if ((string)argv[1] == "img")
-	{
-		Mat frame;
-		roadDetector = RoadDetection("../Assets/" + (string)argv[2]);
-		roadDetector.detectAll();
 	}
 
 	waitKey(0);

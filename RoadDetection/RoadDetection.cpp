@@ -3,6 +3,12 @@
 RoadDetection::RoadDetection(String filePath)
 {
 	original = imread(filePath);
+
+	if (!original.data)
+	{
+		cout << "Unable to read from file. Now exiting..." << endl;
+		exit(1);
+	}
 }
 
 RoadDetection::RoadDetection(Mat original)
@@ -22,46 +28,39 @@ void RoadDetection::setFile(Mat original)
 
 void RoadDetection::method1()
 {
-	Mat originalImg, grayImg, erodedImg, dilatedImg, morphImg, pathImg;
-	DetectionTimer timer;
+	Mat originalFrame, grayFrame, erodedFrame, dilatedFrame, morphFrame, resultFrame;
 
-	// save a copy of the original image
-	original.copyTo(originalImg);
+	// save a copy of the original frame
+	original.copyTo(originalFrame);
 
 	// convert to grayscale, threshold (if pixel > thresh then pixel = max, otherwise 0)
-	cvtColor(originalImg, grayImg, CV_BGR2GRAY);
-	threshold(grayImg, grayImg, 100, 255, THRESH_BINARY);
-
-	// initiate timer, image transformations
-	timer.start();
+	cvtColor(originalFrame, grayFrame, CV_BGR2GRAY);
+	threshold(grayFrame, grayFrame, 100, 255, THRESH_BINARY);
 
 	// eroding process (picks local minimum pixel value from kernel; increases dark areas)
-	erode(grayImg, erodedImg, Mat(), Point(2, 2), 7);
+	erode(grayFrame, erodedFrame, Mat(), Point(2, 2), 7);
 
 	// dilating process (picks local maximum pixel value from kernel; increases light areas)
-	dilate(grayImg, dilatedImg, Mat(), Point(2, 2), 7);
+	dilate(grayFrame, dilatedFrame, Mat(), Point(2, 2), 7);
 
 	// threshold dilated image (if pixel > thresh then pixel = 0, otherwise max)
-	threshold(dilatedImg, dilatedImg, 1, 50, THRESH_BINARY_INV);
+	threshold(dilatedFrame, dilatedFrame, 1, 50, THRESH_BINARY_INV);
 
-	// add both (resulting image has the lowest pixel value between both images; creates contrasting zones)
-	morphImg = Mat(grayImg.size(), CV_8U, Scalar(0));
-	morphImg = erodedImg + dilatedImg;
+	// combine both
+	morphFrame = Mat(grayFrame.size(), CV_8U, Scalar(0));
+	morphFrame = erodedFrame + dilatedFrame;
 
 	// watershed (converting from unsigned 8-bit per pixel (0-255) to signed 32-bit for math operations, and then back for display)
-	morphImg.convertTo(pathImg, CV_32S);
-	watershed(originalImg, pathImg);
-	pathImg.convertTo(pathImg, CV_8U);
+	morphFrame.convertTo(resultFrame, CV_32S);
+	watershed(originalFrame, resultFrame);
+	resultFrame.convertTo(resultFrame, CV_8U);
 
 	// display
 	namedWindow("input");
 	namedWindow("path");
 
-	imshow("input", originalImg);
-	imshow("path", pathImg);
-
-	// process time
-	cout << "time: " << timer.getElapsed() << endl;
+	imshow("input", originalFrame);
+	imshow("path", resultFrame);
 }
 
 void RoadDetection::method2()
@@ -416,4 +415,16 @@ vector<Rect> RoadDetection::getVehicles(Mat frame)
 	vehiclesCascade.detectMultiScale(equalizedFrame, vehicles, cascadeScale, cascadeMinNeighbors, 0 | CASCADE_SCALE_IMAGE, Size(cascadeMinSize, cascadeMaxSize));
 
 	return vehicles;
+}
+
+void onRoadDetectionTrackbarChange(int, void *userdata)
+{
+	RoadDetection roadDetector = *((RoadDetection*)userdata);
+	roadDetector.detectAll();
+}
+
+void RoadDetection::displayControls()
+{
+	namedWindow("Controls", WINDOW_FREERATIO);
+	createTrackbar("Probabilistic Hough Threshold", "Controls", &houghProbThresh, 300, onRoadDetectionTrackbarChange, (void*)(this));
 }

@@ -41,7 +41,7 @@ int main(int argc, char** argv)
 			return -1;
 		}
 
-		while (waitKey(10) < 0)
+		while (waitKey(1) < 0)
 		{
 			Mat frame;
 			cap >> frame;

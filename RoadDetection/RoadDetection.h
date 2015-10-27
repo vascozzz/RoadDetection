@@ -30,6 +30,9 @@ private:
 	vector<Vec4i> getHoughProbLines(Mat frame);
 	Point getVanishingPoint(vector<Vec4i> lines, Size frameSize);
 	vector<Rect> getVehicles(Mat frame);
+	vector<Vec4i> getMainLines(vector<Vec4i> lines);
+	vector<Vec4i> filterSimilarLines(vector<Vec4i> lines);
+	Mat addTo(Mat matA, Mat matB);
 
 public:
 	RoadDetection(){};

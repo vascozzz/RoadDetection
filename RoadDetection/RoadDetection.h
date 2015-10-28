@@ -25,13 +25,19 @@ private:
 	float houghLowAngle = 1.35f, houghHighAngle = 1.75f;
 	float houghProbLowAngle = 0.25f, houghProbHighAngle = 5.85f;
 	double cascadeScale = 1.05f;
+	double maxLineAngleDiff = 0.0872665;
+	int maxLineDistDiff = 20;
 
 	double getAngleBetweenPoints(Point pt1, Point pt2);
+	double getDistBetweenPoints(Point pt1, Point pt2);
+	Point getPointAverage(Point pt1, Point pt2);
+	Point getLineIntersection(Line l1, Line l2);
 	Point getVanishingPoint(vector<Line> lines, Size frameSize);
 
 	vector<Line> getHoughLines(Mat frame);
 	vector<Line> getMainLines(vector<Line> lines);
 	vector<Line> getHoughProbLines(Mat frame);
+	vector<Line> getFilteredLines(vector<Line> lines);
 
 	vector<Rect> getVehicles(Mat frame);
 

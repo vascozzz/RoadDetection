@@ -216,6 +216,7 @@ void RoadDetection::detectAll()
 	Mat originalFrame, tmpFrame, grayFrame, blurredFrame, contoursFrame, houghFrame, sectionFrame, drawingFrame;
 	vector<Line> houghLines, houghBestLines, houghProbLines;
 	Point vanishingPoint;
+	int vanishHeight;
 
 	// save a copy of the original frame
 	original.copyTo(originalFrame);
@@ -225,7 +226,7 @@ void RoadDetection::detectAll()
 	equalizeHist(grayFrame, grayFrame);
 
 	// smooth and remove noise
-	GaussianBlur(grayFrame, blurredFrame, Size(blurKernel, blurKernel), 0, 0);
+	GaussianBlur(originalFrame, blurredFrame, Size(blurKernel, blurKernel), 0, 0);
 
 	// edge detection (canny, inverted)
 	Canny(blurredFrame, contoursFrame, cannyLowThresh, cannyHighThresh);
@@ -237,6 +238,7 @@ void RoadDetection::detectAll()
 
 	// vanishing point
 	vanishingPoint = getVanishingPoint(houghLines, originalFrame.size());
+	vanishHeight = vanishingPoint.y;
 
 	// section frame (below vanishing point)
 	contoursFrame.copyTo(tmpFrame);
@@ -244,13 +246,19 @@ void RoadDetection::detectAll()
 
 	// re-apply hough transform to section frame
 	houghLines = getHoughLines(sectionFrame);
+	houghLines = getFilteredLines(houghLines);
 
 	// best line matches
 	houghBestLines = getMainLines(houghLines);
 
+	if (houghBestLines.size() >= 2)
+	{
+		vanishingPoint = getLineIntersection(houghBestLines[0], houghBestLines[1]);
+	}
+
 	/* DRAWING */
 	originalFrame.copyTo(tmpFrame);
-	drawingFrame = tmpFrame(CvRect(0, vanishingPoint.y, contoursFrame.cols, contoursFrame.rows - vanishingPoint.y));
+	drawingFrame = tmpFrame(CvRect(0, vanishHeight, contoursFrame.cols, contoursFrame.rows - vanishHeight));
 
 	// hough lines
 	for (size_t i = 0; i < houghLines.size(); i++)
@@ -270,20 +278,20 @@ void RoadDetection::detectAll()
 		line(drawingFrame, pt1, pt2, Scalar(20, 125, 255), 2, CV_AA);
 	}
 
+	// vanishing point
+	if (vanishingPoint.x > 0)
+	{
+		circle(drawingFrame, vanishingPoint, 15, Scalar(20, 125, 255), -1, CV_AA);
+	}
+
 	// combine drawing frame with original image
 	for (int i = 0; i < drawingFrame.rows; i++)
 	{
 		for (int j = 0; j < drawingFrame.cols; j++)
 		{
 			Vec3b pixel = drawingFrame.at<Vec3b>(i, j);
-			originalFrame.at<Vec3b>(i + vanishingPoint.y, j) = pixel;
+			originalFrame.at<Vec3b>(i + vanishHeight, j) = pixel;
 		}
-	}
-
-	// vanishing point
-	if (vanishingPoint.x > 0)
-	{
-		circle(originalFrame, vanishingPoint, 15, Scalar(20, 125, 255), -1, CV_AA);
 	}
 
 	namedWindow("original");
@@ -303,6 +311,44 @@ double RoadDetection::getAngleBetweenPoints(Point pt1, Point pt2)
 	{
 		return atan2(yDiff, xDiff);
 	}
+}
+
+double RoadDetection::getDistBetweenPoints(Point pt1, Point pt2)
+{
+	return sqrt(pow(pt2.x - pt1.x, 2) + pow(pt2.y - pt1.y, 2));
+}
+
+Point RoadDetection::getPointAverage(Point pt1, Point pt2)
+{
+	return Point((pt1.x + pt2.x)/2, (pt1.y + pt2.y)/2);
+}
+
+Point RoadDetection::getLineIntersection(Line l1, Line l2)
+{
+	Point l1p1 = l1.pt1;
+	Point l1p2 = l1.pt2;
+	Point l2p1 = l2.pt1;
+	Point l2p2 = l2.pt2;
+
+	// find equation y = mx + c for intersection point between lines
+	// where m = slope, c = intercept
+	float l1Slope = (float)(l1p2.y - l1p1.y) / (l1p2.x - l1p1.x);
+	float l2Slope = (float)(l2p2.y - l2p1.y) / (l2p2.x - l2p1.x);
+
+	if (l1Slope == l2Slope)
+	{
+		return Point(-1, -1);
+	}
+
+	float l1Inter = l1p1.y - l1Slope * l1p1.x;
+	float l2Inter = l2p1.y - l2Slope * l2p1.x;
+
+	float interX = (l2Inter - l1Inter) / (l1Slope - l2Slope);
+	float interY = (l1Slope * interX + l1Inter);
+
+	Point interPoint = Point((int)interX, (int)interY);
+
+	return interPoint;
 }
 
 vector<Line> RoadDetection::getHoughLines(Mat frame)
@@ -329,15 +375,15 @@ vector<Line> RoadDetection::getHoughLines(Mat frame)
 			double a = cos(theta);
 			double b = sin(theta);
 			double x0 = a*rho;
-			double y0 = b*rho;
+double y0 = b*rho;
 
-			pt1.x = cvRound(x0 + 1000 * (-b));
-			pt1.y = cvRound(y0 + 1000 * (a));
-			pt2.x = cvRound(x0 - 1000 * (-b));
-			pt2.y = cvRound(y0 - 1000 * (a));
+pt1.x = cvRound(x0 + 1000 * (-b));
+pt1.y = cvRound(y0 + 1000 * (a));
+pt2.x = cvRound(x0 - 1000 * (-b));
+pt2.y = cvRound(y0 - 1000 * (a));
 
-			Line line = Line(pt1, pt2);
-			filteredLines.push_back(line);
+Line line = Line(pt1, pt2);
+filteredLines.push_back(line);
 		}
 	}
 
@@ -350,7 +396,7 @@ vector<Line> RoadDetection::getMainLines(vector<Line> lines)
 	Line mainLine1, mainLine2;
 	double bestSlope = -1.f;
 
-	for (size_t i = 0; i < lines.size(); i++)
+	for (size_t i = 0; i < lines.size() - 1; i++)
 	{
 		for (size_t j = i + 1; j < lines.size(); j++)
 		{
@@ -406,13 +452,73 @@ vector<Line> RoadDetection::getHoughProbLines(Mat frame)
 	return filteredLines;
 }
 
+vector<Line> RoadDetection::getFilteredLines(vector<Line> lines)
+{
+	vector<Line> output;
+	vector<bool> linesToProcess(lines.size(), true);
+
+	for (size_t i = 0; i < lines.size() - 1; i++)
+	{
+		if (!linesToProcess[i])
+		{
+			continue;
+		}
+
+		for (size_t j = i + 1; j < lines.size(); j++)
+		{
+			Line l1 = lines[i];
+			Line l2 = lines[j];
+
+			if (!linesToProcess[j])
+			{
+				continue;
+				cout << "fuck " << j << " man" << endl;
+			}
+
+			double l1Angle = getAngleBetweenPoints(l1.pt1, l1.pt2);
+			double l2Angle = getAngleBetweenPoints(l2.pt1, l2.pt2);
+
+			double angDiff = abs(l1Angle - l2Angle);
+			if (angDiff < maxLineAngleDiff)
+			{
+				double distpt1 = getDistBetweenPoints(l1.pt1, l2.pt1);
+				double distpt2 = getDistBetweenPoints(l1.pt2, l2.pt2);
+
+				if (distpt1 < maxLineDistDiff || distpt2 < maxLineDistDiff)
+				{
+					Line combinedLine = Line(getPointAverage(l1.pt1, l2.pt1), getPointAverage(l1.pt2, l2.pt2));
+
+					output.push_back(combinedLine);
+					linesToProcess[i] = false;
+					linesToProcess[j] = false;
+					break;
+				}
+			}
+
+			if (j == (lines.size() - 1))
+			{
+				output.push_back(l1);
+			}
+		}
+	}
+
+	int lastIndex = lines.size() - 1;
+	if (linesToProcess[lastIndex])
+		output.push_back(lines[lastIndex]);
+
+	if (output.size() < lines.size())
+		return getFilteredLines(output);
+
+	return output;
+}
+
 Point RoadDetection::getVanishingPoint(vector<Line> lines, Size frameSize)
 {
 	vector<Point> interPoints;
 	vector<double> interAngles;
 	double interAnglesSum = 0;
 
-	for (size_t i = 0; i < lines.size(); i++)
+	for (size_t i = 0; i < lines.size() - 1; i++)
 	{
 		for (size_t j = i + 1; j < lines.size(); j++)
 		{
@@ -424,22 +530,12 @@ Point RoadDetection::getVanishingPoint(vector<Line> lines, Size frameSize)
 			Point l2p1 = l2.pt1;
 			Point l2p2 = l2.pt2;
 
-			// find equation y = mx + c for intersection point between lines
-			// where m = slope, c = intercept
-			float l1Slope = (float)(l1p2.y - l1p1.y) / (l1p2.x - l1p1.x);
-			float l2Slope = (float)(l2p2.y - l2p1.y) / (l2p2.x - l2p1.x);
+			Point interPoint = getLineIntersection(l1, l2);
 
-			if (l1Slope == l2Slope) continue;
-
-			float l1Inter = l1p1.y - l1Slope * l1p1.x;
-			float l2Inter = l2p1.y - l2Slope * l2p1.x;
-
-			float interX = (l2Inter - l1Inter) / (l1Slope - l2Slope);
-			float interY = (l1Slope * interX + l1Inter);
-
-			Point interPoint = Point((int)interX, (int)interY);
-
-			if (interPoint.x > frameSize.width || interPoint.x < 0 || interPoint.y > frameSize.height || interPoint.y < 0) continue;
+			if (interPoint.x > frameSize.width || interPoint.x < 0 || interPoint.y > frameSize.height || interPoint.y < 0)
+			{
+				continue;
+			}
 
 			// get angle between lines
 			double angleLine1 = getAngleBetweenPoints(l1p1, l1p2);

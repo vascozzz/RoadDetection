@@ -81,11 +81,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="DetectionTimer.cpp" />
+    <ClCompile Include="Line.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="RoadDetection.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DetectionTimer.h" />
+    <ClInclude Include="Line.h" />
     <ClInclude Include="RoadDetection.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

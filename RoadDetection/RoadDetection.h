@@ -6,6 +6,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include "opencv2/objdetect.hpp"
 #include "DetectionTimer.h"
+#include "Line.h"
 
 using namespace std;
 using namespace cv;
@@ -26,13 +27,13 @@ private:
 	double cascadeScale = 1.05f;
 
 	double getAngleBetweenPoints(Point pt1, Point pt2);
-	vector<Vec4i> getHoughLines(Mat frame);
-	vector<Vec4i> getHoughProbLines(Mat frame);
-	Point getVanishingPoint(vector<Vec4i> lines, Size frameSize);
+	Point getVanishingPoint(vector<Line> lines, Size frameSize);
+
+	vector<Line> getHoughLines(Mat frame);
+	vector<Line> getMainLines(vector<Line> lines);
+	vector<Line> getHoughProbLines(Mat frame);
+
 	vector<Rect> getVehicles(Mat frame);
-	vector<Vec4i> getMainLines(vector<Vec4i> lines);
-	vector<Vec4i> filterSimilarLines(vector<Vec4i> lines);
-	Mat addTo(Mat matA, Mat matB);
 
 public:
 	RoadDetection(){};

@@ -11,19 +11,25 @@ RoadDetection::RoadDetection(String filePath)
 	}
 }
 
-RoadDetection::RoadDetection(Mat original)
+RoadDetection::RoadDetection(Mat frame)
 {
-	original.copyTo(this->original);
+	frame.copyTo(original);
 }
 
 void RoadDetection::setFile(String filePath)
 {
 	original = imread(filePath);
+
+	if (!original.data)
+	{
+		cout << "Unable to read from file. Now exiting..." << endl;
+		exit(1);
+	}
 }
 
-void RoadDetection::setFile(Mat original)
+void RoadDetection::setFile(Mat frame)
 {
-	original.copyTo(this->original);
+	frame.copyTo(original);
 }
 
 void RoadDetection::method1()
@@ -207,9 +213,8 @@ void RoadDetection::method3()
 
 void RoadDetection::detectAll()
 {
-	Mat originalFrame, grayFrame, blurredFrame, contoursFrame, houghFrame, houghProbFrame, sectionFrame;
-	vector<Vec4i> houghLines, houghBestLines, houghProbLines;
-	vector<Rect> vehicles;
+	Mat originalFrame, tmpFrame, grayFrame, blurredFrame, contoursFrame, houghFrame, sectionFrame, drawingFrame;
+	vector<Line> houghLines, houghBestLines, houghProbLines;
 	Point vanishingPoint;
 
 	// save a copy of the original frame
@@ -234,7 +239,6 @@ void RoadDetection::detectAll()
 	vanishingPoint = getVanishingPoint(houghLines, originalFrame.size());
 
 	// section frame (below vanishing point)
-	Mat tmpFrame;
 	contoursFrame.copyTo(tmpFrame);
 	sectionFrame = tmpFrame(CvRect(0, vanishingPoint.y, contoursFrame.cols, contoursFrame.rows - vanishingPoint.y));
 
@@ -245,33 +249,33 @@ void RoadDetection::detectAll()
 	houghBestLines = getMainLines(houghLines);
 
 	/* DRAWING */
-	Mat newSectionFrame;
 	originalFrame.copyTo(tmpFrame);
-	newSectionFrame = tmpFrame(CvRect(0, vanishingPoint.y, contoursFrame.cols, contoursFrame.rows - vanishingPoint.y));
+	drawingFrame = tmpFrame(CvRect(0, vanishingPoint.y, contoursFrame.cols, contoursFrame.rows - vanishingPoint.y));
 
 	// hough lines
 	for (size_t i = 0; i < houghLines.size(); i++)
 	{
-		Point pt1 = Point(houghLines[i][0], houghLines[i][1]);
-		Point pt2 = Point(houghLines[i][2], houghLines[i][3]);
+		Point pt1 = houghLines[i].pt1;
+		Point pt2 = houghLines[i].pt2;
 
-		line(newSectionFrame, pt1, pt2, Scalar(0, 0, 255), 2, CV_AA);
+		line(drawingFrame, pt1, pt2, Scalar(0, 0, 255), 2, CV_AA);
 	}
 
 	// best lines
 	for (size_t i = 0; i < houghBestLines.size(); i++)
 	{
-		Point pt1 = Point(houghBestLines[i][0], houghBestLines[i][1]);
-		Point pt2 = Point(houghBestLines[i][2], houghBestLines[i][3]);
+		Point pt1 = houghBestLines[i].pt1;
+		Point pt2 = houghBestLines[i].pt2;
 
-		line(newSectionFrame, pt1, pt2, Scalar(20, 125, 255), 2, CV_AA);
+		line(drawingFrame, pt1, pt2, Scalar(20, 125, 255), 2, CV_AA);
 	}
 
-	for (int i = 0; i < newSectionFrame.rows; i++)
+	// combine drawing frame with original image
+	for (int i = 0; i < drawingFrame.rows; i++)
 	{
-		for (int j = 0; j < newSectionFrame.cols; j++)
+		for (int j = 0; j < drawingFrame.cols; j++)
 		{
-			Vec3b pixel = newSectionFrame.at<Vec3b>(i, j);
+			Vec3b pixel = drawingFrame.at<Vec3b>(i, j);
 			originalFrame.at<Vec3b>(i + vanishingPoint.y, j) = pixel;
 		}
 	}
@@ -279,7 +283,7 @@ void RoadDetection::detectAll()
 	// vanishing point
 	if (vanishingPoint.x > 0)
 	{
-		circle(originalFrame, vanishingPoint, 15, Scalar(0, 0, 255), -1, CV_AA);
+		circle(originalFrame, vanishingPoint, 15, Scalar(20, 125, 255), -1, CV_AA);
 	}
 
 	namedWindow("original");
@@ -301,10 +305,10 @@ double RoadDetection::getAngleBetweenPoints(Point pt1, Point pt2)
 	}
 }
 
-vector<Vec4i> RoadDetection::getHoughLines(Mat frame)
+vector<Line> RoadDetection::getHoughLines(Mat frame)
 {
 	vector<Vec2f> lines;
-	vector<Vec4i> filteredLines;
+	vector<Line> filteredLines;
 
 	// lower thresh in an attempt to get at least houghMinLines
 	while ((int)lines.size() < houghMinLines && houghThresh > 0)
@@ -332,7 +336,7 @@ vector<Vec4i> RoadDetection::getHoughLines(Mat frame)
 			pt2.x = cvRound(x0 - 1000 * (-b));
 			pt2.y = cvRound(y0 - 1000 * (a));
 
-			Vec4i line = Vec4i(pt1.x, pt1.y, pt2.x, pt2.y);
+			Line line = Line(pt1, pt2);
 			filteredLines.push_back(line);
 		}
 	}
@@ -340,23 +344,23 @@ vector<Vec4i> RoadDetection::getHoughLines(Mat frame)
 	return filteredLines;
 }
 
-vector<Vec4i> RoadDetection::getMainLines(vector<Vec4i> lines)
+vector<Line> RoadDetection::getMainLines(vector<Line> lines)
 {
-	vector<Vec4i> mainLines;
+	vector<Line> mainLines;
+	Line mainLine1, mainLine2;
 	double bestSlope = -1.f;
-	Vec4i line1, line2;
 
 	for (size_t i = 0; i < lines.size(); i++)
 	{
 		for (size_t j = i + 1; j < lines.size(); j++)
 		{
-			Vec4i l1 = lines[i];
-			Vec4i l2 = lines[j];
+			Line l1 = lines[i];
+			Line l2 = lines[j];
 
-			Point l1p1 = Point(l1[0], l1[1]);
-			Point l1p2 = Point(l1[2], l1[3]);
-			Point l2p1 = Point(l2[0], l2[1]);
-			Point l2p2 = Point(l2[2], l2[3]);
+			Point l1p1 = l1.pt1;
+			Point l1p2 = l1.pt2;
+			Point l2p1 = l2.pt1;
+			Point l2p2 = l2.pt2;
 
 			double angleLine1 = getAngleBetweenPoints(l1p1, l1p2);
 			double angleLine2 = getAngleBetweenPoints(l2p1, l2p2);
@@ -366,22 +370,22 @@ vector<Vec4i> RoadDetection::getMainLines(vector<Vec4i> lines)
 			if (slopeDiff > bestSlope)
 			{
 				bestSlope = slopeDiff;
-				line1 = l1;
-				line2 = l2;
+				mainLine1 = l1;
+				mainLine2 = l2;
 			}
 		}
 	}
 
-	mainLines.push_back(line1);
-	mainLines.push_back(line2);
+	mainLines.push_back(mainLine1);
+	mainLines.push_back(mainLine2);
 
 	return mainLines;
 }
 
-vector<Vec4i> RoadDetection::getHoughProbLines(Mat frame)
+vector<Line> RoadDetection::getHoughProbLines(Mat frame)
 {
 	vector<Vec4i> lines;
-	vector<Vec4i> filteredLines;
+	vector<Line> filteredLines;
 
 	HoughLinesP(frame, lines, 1, CV_PI / 180, houghProbThresh, houghProbMinLineLength, houghProbMaxLineGap);
 
@@ -394,14 +398,15 @@ vector<Vec4i> RoadDetection::getHoughProbLines(Mat frame)
 
 		if (angle > houghProbLowAngle && angle < houghProbHighAngle)
 		{
-			filteredLines.push_back(lines[i]);
+			Line line = Line(pt1, pt2);
+			filteredLines.push_back(line);
 		}
 	}
 
 	return filteredLines;
 }
 
-Point RoadDetection::getVanishingPoint(vector<Vec4i> lines, Size frameSize)
+Point RoadDetection::getVanishingPoint(vector<Line> lines, Size frameSize)
 {
 	vector<Point> interPoints;
 	vector<double> interAngles;
@@ -411,13 +416,13 @@ Point RoadDetection::getVanishingPoint(vector<Vec4i> lines, Size frameSize)
 	{
 		for (size_t j = i + 1; j < lines.size(); j++)
 		{
-			Vec4i l1 = lines[i];
-			Vec4i l2 = lines[j];
+			Line l1 = lines[i];
+			Line l2 = lines[j];
 
-			Point l1p1 = Point(l1[0], l1[1]);
-			Point l1p2 = Point(l1[2], l1[3]);
-			Point l2p1 = Point(l2[0], l2[1]);
-			Point l2p2 = Point(l2[2], l2[3]);
+			Point l1p1 = l1.pt1;
+			Point l1p2 = l1.pt2;
+			Point l2p1 = l2.pt1;
+			Point l2p2 = l2.pt2;
 
 			// find equation y = mx + c for intersection point between lines
 			// where m = slope, c = intercept
@@ -457,20 +462,11 @@ Point RoadDetection::getVanishingPoint(vector<Vec4i> lines, Size frameSize)
 		double interAngle = interAngles[i];
 		double weight = interAngle / interAnglesSum;
 
-		vanishPoint.x += interPoint.x * weight;
-		vanishPoint.y += interPoint.y * weight;
+		vanishPoint.x += cvRound(interPoint.x * weight);
+		vanishPoint.y += cvRound(interPoint.y * weight);
 	}
 
 	return vanishPoint;
-}
-
-vector<Vec4i> RoadDetection::filterSimilarLines(vector<Vec4i> lines)
-{
-	vector<Vec4i> filteredLines;
-
-	
-
-	return filteredLines;
 }
 
 vector<Rect> RoadDetection::getVehicles(Mat frame)
@@ -500,18 +496,6 @@ void RoadDetection::displayControls()
 	namedWindow("Controls", WINDOW_FREERATIO);
 	createTrackbar("Probabilistic Hough Threshold", "Controls", &houghProbThresh, 300, onRoadDetectionTrackbarChange, (void*)(this));
 }
-
-
-/* // probabilistic hough transform
-houghProbFrame = Mat(originalFrame.size(), CV_8U, Scalar(0));
-houghProbLines = getHoughProbLines(contoursFrame);
-
-for (size_t i = 0; i < houghProbLines.size(); i++)
-{
-Point pt1 = Point(houghProbLines[i][0], houghProbLines[i][1]);
-Point pt2 = Point(houghProbLines[i][2], houghProbLines[i][3]);
-line(originalFrame, pt1, pt2, Scalar(255, 0, 0), 1, CV_AA);
-}*/
 
 
 // vehicles

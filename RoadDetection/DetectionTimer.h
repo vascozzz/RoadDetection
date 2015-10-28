@@ -11,6 +11,7 @@ class DetectionTimer
 {
 private:
 	double initialTime;
+
 public:
 	DetectionTimer();
 	~DetectionTimer(){};

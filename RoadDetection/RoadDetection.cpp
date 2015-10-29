@@ -37,6 +37,7 @@ void RoadDetection::processImage()
 	Mat originalFrame, tmpFrame, grayFrame, blurredFrame, contoursFrame, houghFrame, sectionFrame, drawingFrame;
 	vector<Line> houghLines, houghBestLines, houghProbLines;
 	Point vanishingPoint;
+	vector<Point> roadShape;
 	int vanishHeight;
 
 	// save a copy of the original frame
@@ -71,6 +72,9 @@ void RoadDetection::processImage()
 	if (houghBestLines.size() >= 2)
 	{
 		vanishingPoint = getLineIntersection(houghBestLines[0], houghBestLines[1]);
+
+		// get road shape
+		roadShape = getRoadShape(sectionFrame, houghBestLines[0], houghBestLines[1], vanishingPoint);
 	}
 
 	/* DRAWING */
@@ -100,6 +104,19 @@ void RoadDetection::processImage()
 	{
 		circle(drawingFrame, vanishingPoint, 15, Scalar(20, 125, 255), -1, CV_AA);
 	}
+
+	// road shape
+
+	int lineType = 8;
+	Point shapePoints[1][3];
+
+	for (int i = 0; i < roadShape.size(); i++)
+		shapePoints[0][i] = roadShape[i];
+
+	const Point* ppt[1] = { shapePoints[0] };
+	int npt[] = { 3 };
+
+	fillPoly(drawingFrame, ppt, npt, 1, Scalar(0, 255, 0), lineType);
 
 	// combine drawing frame with original image
 	for (int i = 0; i < drawingFrame.rows; i++)
@@ -468,6 +485,45 @@ vector<Line> RoadDetection::getMainLines(vector<Line> lines)
 	mainLines.push_back(mainLine2);
 
 	return mainLines;
+}
+
+vector<Point> RoadDetection::getRoadShape(Mat screen, Line l1, Line l2, Point inter)
+{
+	vector<Point> output;
+
+	int screenSizeX = screen.cols;
+	int screenSizeY = screen.rows;
+
+	//simple side detection
+	Line leftLine;
+	Line rightLine;
+
+	if (l1.slope > 0)
+	{
+		leftLine = l1;
+		rightLine = l2;
+	}
+	else
+	{
+		leftLine = l2;
+		rightLine = l1;
+	}
+
+	//Start filling point vector
+
+	output.push_back(inter);
+
+	cout << "Left Line: y = " << leftLine.slope << "x + " << leftLine.intercept << endl;
+	cout << "Right Line: y = " << rightLine.slope << "x + " << rightLine.intercept << endl;
+
+	// y = mx + b <=> screenSizeY = mx + b <=> x = (screenSizeY - b) / m
+	Point leftPoint = Point((screenSizeY - leftLine.intercept) / leftLine.slope, screenSizeY);
+	output.push_back(leftPoint);
+
+	Point rightPoint = Point((screenSizeY - rightLine.intercept) / rightLine.slope, screenSizeY);
+	output.push_back(rightPoint);
+
+	return output;
 }
 
 vector<Rect> RoadDetection::getVehicles(Mat frame)

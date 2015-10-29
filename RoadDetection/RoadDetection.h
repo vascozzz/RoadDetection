@@ -37,6 +37,7 @@ private:
 	vector<Line> getMainLines(vector<Line> lines);
 	vector<Line> getHoughProbLines(Mat frame);
 	vector<Line> getFilteredLines(vector<Line> lines);
+	vector<Point> getRoadShape(Mat screen, Line l1, Line l2, Point inter);
 
 	vector<Rect> getVehicles(Mat frame);
 

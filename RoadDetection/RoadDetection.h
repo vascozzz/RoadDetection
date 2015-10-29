@@ -18,23 +18,22 @@ private:
 
 	int blurKernel = 5;
 	int cannyLowThresh = 50, cannyHighThresh = 200;
-	int houghThresh = 200, houghMinLines = 5;
+	int houghDefaultThresh = 90, houghMinThresh = 200, houghMinLines = 5;
 	int houghProbThresh = 120, houghProbMinLineLength = 80, houghProbMaxLineGap = 50;
 	int cascadeMinNeighbors = 2, cascadeMinSize = 30, cascadeMaxSize = 30;
+	int maxLineDistDiff = 20;
 
 	float houghLowAngle = 1.35f, houghHighAngle = 1.75f;
 	float houghProbLowAngle = 0.25f, houghProbHighAngle = 5.85f;
 	double cascadeScale = 1.05f;
 	double maxLineAngleDiff = 0.0872665;
-	int maxLineDistDiff = 20;
 
-	double getAngleBetweenPoints(Point pt1, Point pt2);
 	double getDistBetweenPoints(Point pt1, Point pt2);
 	Point getPointAverage(Point pt1, Point pt2);
 	Point getLineIntersection(Line l1, Line l2);
 	Point getVanishingPoint(vector<Line> lines, Size frameSize);
 
-	vector<Line> getHoughLines(Mat frame);
+	vector<Line> getHoughLines(Mat frame, bool useMinimum);
 	vector<Line> getMainLines(vector<Line> lines);
 	vector<Line> getHoughProbLines(Mat frame);
 	vector<Line> getFilteredLines(vector<Line> lines);
@@ -54,6 +53,7 @@ public:
 	void method2();
 	void method3();
 
-	void detectAll();
+	void processImage();
+	Mat processVideo(Mat rawFrame);
 	void displayControls();
 };

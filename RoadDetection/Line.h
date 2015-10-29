@@ -9,11 +9,18 @@ using namespace cv;
 
 class Line
 {
+private:
+	double getAngleBetweenPoints();
+	float getSlope();
+	float getIntercept();
+
 public:
+	Point pt1, pt2;
+	double angle;
+	float slope, intercept;
+
 	Line(){};
 	Line(Point pt1, Point pt2);
 	~Line(){};
-
-	Point pt1, pt2;
 };
 

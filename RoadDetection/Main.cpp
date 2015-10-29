@@ -9,47 +9,76 @@
 using namespace std;
 using namespace cv;
 
+String baseAssetsPath = "../Assets/";
+
+void displayHelp();
+void processImage(String path);
+void processVideo(String path);
+
 int main(int argc, char** argv)
 {
 	if (argc < 3)
 	{
-		cout << "Usage example: RoadDetection.exe -method -filepath" << endl;
-		cout << "Available methods: img, vid" << endl;
+		displayHelp();
 		return -1;
 	}
 
-	RoadDetection roadDetector;
-	String method = (string)argv[1];
-	String filePath = (string)argv[2];
+	int method = atoi(argv[1]);
+	String file = (string)argv[2];
 
-	// image processing
-	if (method == "img")
+	switch (method)
 	{
-		roadDetector = RoadDetection("../Assets/" + filePath);
-		roadDetector.detectAll();
-		roadDetector.displayControls();
-	}
-
-	// video processing
-	else if (method == "vid")
-	{
-		VideoCapture cap = VideoCapture("../Assets/" + filePath);
-
-		if (!cap.isOpened())
-		{
-			cout << "Unable to read from file. Now exiting..." << endl;
+		case 1:
+			processImage(baseAssetsPath + file);
+			break;
+		case 2:
+			processVideo(baseAssetsPath + file);
+			break;
+		default:
+			displayHelp();
 			return -1;
-		}
-
-		while (waitKey(1) < 0)
-		{
-			Mat frame;
-			cap >> frame;
-
-			roadDetector = RoadDetection(frame);
-			roadDetector.detectAll();
-		}
 	}
 
 	waitKey(0);
+}
+
+void processImage(String path)
+{
+	RoadDetection roadDetector = RoadDetection(path);
+	roadDetector.processImage();
+	roadDetector.displayControls();
+}
+
+void processVideo(String path)
+{
+	VideoCapture cap = VideoCapture(path);
+	RoadDetection roadDetector;
+
+	namedWindow("video");
+
+	if (!cap.isOpened())
+	{
+		cout << "Unable to read from file. Now exiting..." << endl;
+		exit(1);
+	}
+
+	while (waitKey(1) < 0)
+	{
+		Mat rawFrame;
+		
+		if (!cap.read(rawFrame))
+		{ 
+			cout << "Skipped a frame..." << endl;
+		}
+
+		Mat result = roadDetector.processVideo(rawFrame);
+		
+		imshow("video", result);
+	}
+}
+
+void displayHelp()
+{
+	cout << "Usage example: RoadDetection.exe -method -filepath" << endl;
+	cout << "Available methods: image(1), video(2)" << endl;
 }

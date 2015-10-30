@@ -15,18 +15,22 @@ class RoadDetection
 {
 private:
 	Mat original;
+	Point previousVanishingPoint;
+	int previousOffset;
+	vector<Line> previousLines;
 
-	int blurKernel = 5;
-	int cannyLowThresh = 50, cannyHighThresh = 200;
-	int houghDefaultThresh = 90, houghMinThresh = 200, houghMinLines = 5;
-	int houghProbThresh = 120, houghProbMinLineLength = 80, houghProbMaxLineGap = 50;
-	int cascadeMinNeighbors = 2, cascadeMinSize = 30, cascadeMaxSize = 30;
-	int maxLineDistDiff = 20;
+	int BLUR_KERNEL = 5;
+	int CANNY_MIN_THRESH = 50, CANNY_MAX_THRESH = 200;
+	int HOUGH_DEFAULT_THRESH = 90, HOUGH_MIN_THRESH = 200, HOUGH_MIN_LINES = 5;
+	int HOUGH_PROB_THRESH = 120, HOUGH_PROB_MIN_LINE_LENGTH = 80, HOUGH_PROB_MAX_LINE_GAP = 50;
+	int CASCADE_MIN_NEIGHBORS = 2, CASCADE_MIN_SIZE = 30, CASCADE_MAX_SIZE = 30;
+	int LINE_DIST_MAX_DIFF = 20;
 
-	float houghLowAngle = 1.35f, houghHighAngle = 1.75f;
-	float houghProbLowAngle = 0.25f, houghProbHighAngle = 5.85f;
-	double cascadeScale = 1.05f;
-	double maxLineAngleDiff = 0.0872665;
+	float HOUGH_MIN_ANGLE = 1.35f, HOUGH_MAX_ANGLE = 1.75f;
+	float HOUGH_PROB_MIN_ANGLE = 0.25f, HOUGH_PROB_MAX_ANGLE = 5.85f;
+	double CASCADE_SCALE = 1.05f;
+	double LINE_DIFF_MAX_ANGLE = 0.0872665;
+	String CLASSIFIER_PATH = "../Assets/cars.xml";
 
 	double getDistBetweenPoints(Point pt1, Point pt2);
 	Point getPointAverage(Point pt1, Point pt2);
@@ -37,9 +41,15 @@ private:
 	vector<Line> getMainLines(vector<Line> lines);
 	vector<Line> getHoughProbLines(Mat frame);
 	vector<Line> getFilteredLines(vector<Line> lines);
+	vector<Line> getLimitedLines(vector<Line> lines, int offset);
 	vector<Point> getRoadShape(Mat screen, Line l1, Line l2, Point inter);
-
 	vector<Rect> getVehicles(Mat frame);
+
+	void drawLines(Mat frame, vector<Line> lines, Scalar color, int thickness, int offset);
+	void drawCircle(Mat frame, Point center, Scalar color, int radius, int thickness, int offset);
+	void drawRects(Mat frame, vector<Rect> rects, Scalar color, int thickness, int offset);
+	void drawRoadShape(Mat frame, vector<Point> points, Scalar color, double alpha, int offset);
+	void combineWithSection(Mat frame, Mat section, int initialPos, int offset);
 
 public:
 	RoadDetection(){};
@@ -50,11 +60,8 @@ public:
 	void setFile(String path);
 	void setFile(Mat original);
 
-	void method1();
-	void method2();
-	void method3();
-
-	void processImage();
+	Mat processImage();
 	Mat processVideo(Mat rawFrame);
+
 	void displayControls();
 };

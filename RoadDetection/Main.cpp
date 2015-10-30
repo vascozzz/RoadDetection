@@ -45,8 +45,10 @@ int main(int argc, char** argv)
 void processImage(String path)
 {
 	RoadDetection roadDetector = RoadDetection(path);
-	roadDetector.processImage();
-	roadDetector.displayControls();
+	Mat result = roadDetector.processImage();
+
+	namedWindow("Road Detection");
+	imshow("Road Detection", result);
 }
 
 void processVideo(String path)
@@ -54,7 +56,7 @@ void processVideo(String path)
 	VideoCapture cap = VideoCapture(path);
 	RoadDetection roadDetector;
 
-	namedWindow("video");
+	namedWindow("Road Detection");
 
 	if (!cap.isOpened())
 	{
@@ -71,9 +73,9 @@ void processVideo(String path)
 			cout << "Skipped a frame..." << endl;
 		}
 
-		Mat result = roadDetector.processVideo(rawFrame);
+		rawFrame = roadDetector.processVideo(rawFrame);
 		
-		imshow("video", result);
+		imshow("Road Detection", rawFrame);
 	}
 }
 

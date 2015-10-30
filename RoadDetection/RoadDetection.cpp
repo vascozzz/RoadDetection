@@ -122,6 +122,7 @@ Mat RoadDetection::processVideo(Mat rawFrame)
 	vector<Rect> vehicles;
 
 	int sectionOffset;
+	int vanishOffset;
 
 	// convert to grayscale
 	cvtColor(rawFrame, grayFrame, CV_BGR2GRAY);
@@ -140,19 +141,21 @@ Mat RoadDetection::processVideo(Mat rawFrame)
 	// vanishing point
 	vanishingPoint = getVanishingPoint(houghLines, rawFrame.size());
 	sectionOffset = vanishingPoint.y;
+	vanishOffset = vanishingPoint.y;
 
-	/*// if we can't find a point, use the one from a previous frame
+	// if we can't find a point, use the one from a previous frame
 	if (vanishingPoint.x == 0 && vanishingPoint.y == 0)
 	{
 		vanishingPoint = previousVanishingPoint;
 		sectionOffset = previousOffset;
+		vanishOffset = previousOffset;
 	}
 	// if we can, save it for future use
 	else
 	{
 		previousVanishingPoint = vanishingPoint;
 		previousOffset = sectionOffset;
-	}*/
+	}
 
 	// section frame (below vanishing point)
 	sectionFrame = contoursFrame(CvRect(0, sectionOffset, contoursFrame.cols, contoursFrame.rows - sectionOffset));
@@ -166,17 +169,40 @@ Mat RoadDetection::processVideo(Mat rawFrame)
 	// update vanishing point according to the new section
 	if (houghMainLines.size() >= 2)
 	{
+		previousLines = houghMainLines;
+	}
+	else
+	{
+		houghMainLines = previousLines;
+	}
+
+	if (houghMainLines.size() >= 2)
+	{
 		Point intersection = getLineIntersection(houghMainLines[0], houghMainLines[1]);
 
-		if (intersection.x > 0 && intersection.y >= 0)
+		if (intersection.x > 0 && intersection.x < sectionFrame.cols && intersection.y >= 0 && intersection.y < sectionFrame.rows)
 		{
 			vanishingPoint = intersection;
 			sectionOffset += vanishingPoint.y;
+			vanishOffset += vanishingPoint.y;
+		}
+		else
+		{
+			vanishOffset = 0;
 		}
 
 		// get road shape
 		roadShape = getRoadShape(sectionFrame, houghMainLines[0], houghMainLines[1], vanishingPoint);
 	}
+	else
+	{
+		vanishOffset = 0;
+	}
+
+	cout << "Main Lines: " << endl;
+	cout << houghMainLines[0].pt1.x << "," << houghMainLines[0].pt1.y << " " << houghMainLines[0].pt2.x << "," << houghMainLines[0].pt2.y << endl;
+	cout << houghMainLines[1].pt1.x << "," << houghMainLines[1].pt1.y << " " << houghMainLines[1].pt2.x << "," << houghMainLines[1].pt2.y << endl;
+	cout << endl;
 
 	// drawing frame and vehicles
 	rawFrame.copyTo(tmpFrame);
@@ -184,10 +210,11 @@ Mat RoadDetection::processVideo(Mat rawFrame)
 	vehicles = getVehicles(drawingFrame);
 
 	// drawing process
+	drawLines(drawingFrame, houghLines, Scalar(0, 0, 255), 2, 0);
 	drawLines(drawingFrame, houghMainLines, Scalar(20, 125, 255), 2, 0);
 	drawRoadShape(drawingFrame, roadShape, Scalar(20, 125, 255), 0.3, 0);
 	combineWithSection(rawFrame, drawingFrame, vanishingPoint.y, sectionOffset);
-	drawCircle(rawFrame, vanishingPoint, Scalar(20, 125, 255), 15, -1, sectionOffset);
+	drawCircle(rawFrame, vanishingPoint, Scalar(20, 125, 255), 15, -1, vanishOffset);
 	drawRects(rawFrame, vehicles, Scalar(255, 0, 0), 1, sectionOffset);
 
 	return rawFrame;

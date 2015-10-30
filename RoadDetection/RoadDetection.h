@@ -42,13 +42,13 @@ private:
 	vector<Line> getFilteredLines(vector<Line> lines);
 	vector<Line> getLimitedLines(vector<Line> lines, int offset);
 	vector<Line> shiftLines(vector<Line> lines, int shift);
-	vector<Point> getRoadShape(Mat screen, Line l1, Line l2, Point inter);
 	vector<Rect> getVehicles(Mat frame);
+	vector<Point> getRoadShape(Mat screen, Line l1, Line l2, Point inter);
 
 	void drawLines(Mat frame, vector<Line> lines, Scalar color, int thickness, int offset);
 	void drawCircle(Mat frame, Point center, Scalar color, int radius, int thickness, int offset);
 	void drawRects(Mat frame, vector<Rect> rects, Scalar color, int thickness, int offset);
-	void drawRoadShape(Mat frame, vector<Point> points, Scalar color, double alpha, int offset);
+	void drawRoadShape(Mat frame, vector<Point> points, Scalar color, double alpha);
 	void combineWithSection(Mat frame, Mat section, int initialPos, int offset);
 
 public:

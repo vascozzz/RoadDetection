@@ -106,7 +106,7 @@ Mat RoadDetection::processImage()
 	// drawing process
 	drawLines(rawFrame, houghLines, Scalar(0, 0, 255), 2, 0);
 	drawLines(rawFrame, houghMainLines, Scalar(20, 125, 255), 2, 0);
-	drawRoadShape(rawFrame, roadShape, Scalar(20, 125, 255), 0.4, 0);
+	drawRoadShape(rawFrame, roadShape, Scalar(20, 125, 255), 0.4);
 	drawCircle(rawFrame, vanishingPoint, Scalar(20, 125, 255), 15, -1, 0);
 
 	return rawFrame;
@@ -197,14 +197,14 @@ Mat RoadDetection::processVideo(Mat rawFrame)
 
 	// drawing frame and vehicles
 	drawingFrame = rawFrame(CvRect(0, sectionOffset, contoursFrame.cols, contoursFrame.rows - sectionOffset));
-	vehicles = getVehicles(drawingFrame);
+	// vehicles = getVehicles(drawingFrame);
 
 	// drawing process
 	drawLines(rawFrame, houghLines, Scalar(0, 0, 255), 2, 0);
 	drawLines(rawFrame, houghMainLines, Scalar(20, 125, 255), 2, 0);
-	drawRoadShape(rawFrame, roadShape, Scalar(20, 125, 255), 0.3, 0);
+	drawRoadShape(rawFrame, roadShape, Scalar(20, 125, 255), 0.3);
 	drawCircle(rawFrame, vanishingPoint, Scalar(20, 125, 255), 15, -1, 0);
-	drawRects(rawFrame, vehicles, Scalar(255, 0, 0), 1, sectionOffset);
+	// drawRects(rawFrame, vehicles, Scalar(255, 0, 0), 1, sectionOffset);
 
 	return rawFrame;
 }
@@ -246,7 +246,7 @@ void RoadDetection::drawRects(Mat frame, vector<Rect> rects, Scalar color, int t
 	}
 }
 
-void RoadDetection::drawRoadShape(Mat frame, vector<Point> points, Scalar color, double alpha, int offset)
+void RoadDetection::drawRoadShape(Mat frame, vector<Point> points, Scalar color, double alpha)
 {
 	Mat copy;
 	Point shapePoints[1][3];

@@ -64,7 +64,7 @@ void processVideo(String path)
 		exit(1);
 	}
 
-	while (waitKey(1) < 0)
+	while (cap.isOpened() && waitKey(1) < 0)
 	{
 		Mat rawFrame;
 		

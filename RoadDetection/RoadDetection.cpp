@@ -45,7 +45,7 @@ void RoadDetection::setFile(Mat frame)
  */
 Mat RoadDetection::processImage()
 {
-	Mat rawFrame, tmpFrame, grayFrame, blurredFrame, contoursFrame, houghFrame, sectionFrame, drawingFrame;
+	Mat rawFrame, tmpFrame, grayFrame, blurredFrame, contoursFrame, houghFrame, sectionFrame;
 	Point vanishingPoint;
 
 	vector<Line> houghLines, houghMainLines;
@@ -76,6 +76,10 @@ Mat RoadDetection::processImage()
 
 	// re-apply hough transform to section frame
 	houghLines = getHoughLines(sectionFrame, true);
+
+	// shift lines downwards
+	houghLines = shiftLines(houghLines, sectionOffset);
+
 	houghLines = getFilteredLines(houghLines);
 
 	// best line matches
@@ -88,23 +92,22 @@ Mat RoadDetection::processImage()
 		if (intersection.x > 0 && intersection.y >= 0)
 		{
 			vanishingPoint = intersection;
-			sectionOffset += vanishingPoint.y;
+			sectionOffset = intersection.y;
 		}
 
 		// get road shape
-		roadShape = getRoadShape(sectionFrame, houghMainLines[0], houghMainLines[1], vanishingPoint);
+		roadShape = getRoadShape(rawFrame, houghMainLines[0], houghMainLines[1], vanishingPoint);
 	}
 
-	// drawing frame and vehicles
-	rawFrame.copyTo(tmpFrame);
-	drawingFrame = tmpFrame(CvRect(0, sectionOffset, contoursFrame.cols, contoursFrame.rows - sectionOffset));
+	// limit lines
+	houghLines = getLimitedLines(houghLines, sectionOffset);
+	houghMainLines = getLimitedLines(houghMainLines, sectionOffset);
 
 	// drawing process
-	drawLines(drawingFrame, houghLines, Scalar(0, 0, 255), 2, 0);
-	drawLines(drawingFrame, houghMainLines, Scalar(20, 125, 255), 2, 0);
-	drawRoadShape(drawingFrame, roadShape, Scalar(20, 125, 255), 0.4, 0);
-	combineWithSection(rawFrame, drawingFrame, vanishingPoint.y, sectionOffset);
-	drawCircle(rawFrame, vanishingPoint, Scalar(20, 125, 255), 15, -1, sectionOffset);
+	drawLines(rawFrame, houghLines, Scalar(0, 0, 255), 2, 0);
+	drawLines(rawFrame, houghMainLines, Scalar(20, 125, 255), 2, 0);
+	drawRoadShape(rawFrame, roadShape, Scalar(20, 125, 255), 0.4, 0);
+	drawCircle(rawFrame, vanishingPoint, Scalar(20, 125, 255), 15, -1, 0);
 
 	return rawFrame;
 }
@@ -122,7 +125,6 @@ Mat RoadDetection::processVideo(Mat rawFrame)
 	vector<Rect> vehicles;
 
 	int sectionOffset;
-	int vanishOffset;
 
 	// convert to grayscale
 	cvtColor(rawFrame, grayFrame, CV_BGR2GRAY);
@@ -141,20 +143,16 @@ Mat RoadDetection::processVideo(Mat rawFrame)
 	// vanishing point
 	vanishingPoint = getVanishingPoint(houghLines, rawFrame.size());
 	sectionOffset = vanishingPoint.y;
-	vanishOffset = vanishingPoint.y;
 
 	// if we can't find a point, use the one from a previous frame
 	if (vanishingPoint.x == 0 && vanishingPoint.y == 0)
 	{
 		vanishingPoint = previousVanishingPoint;
-		sectionOffset = previousOffset;
-		vanishOffset = previousOffset;
 	}
 	// if we can, save it for future use
 	else
 	{
 		previousVanishingPoint = vanishingPoint;
-		previousOffset = sectionOffset;
 	}
 
 	// section frame (below vanishing point)
@@ -162,6 +160,9 @@ Mat RoadDetection::processVideo(Mat rawFrame)
 
 	// re-apply hough transform to section frame
 	houghLines = getHoughLines(sectionFrame, true);
+
+	// shift lines downwards
+	houghLines = shiftLines(houghLines, sectionOffset);
 
 	// best line matches
 	houghMainLines = getMainLines(houghLines);
@@ -180,41 +181,29 @@ Mat RoadDetection::processVideo(Mat rawFrame)
 	{
 		Point intersection = getLineIntersection(houghMainLines[0], houghMainLines[1]);
 
-		if (intersection.x > 0 && intersection.x < sectionFrame.cols && intersection.y >= 0 && intersection.y < sectionFrame.rows)
+		if (intersection.x > 0 && intersection.x < rawFrame.cols && intersection.y > 0 && intersection.y < rawFrame.rows)
 		{
 			vanishingPoint = intersection;
-			sectionOffset += vanishingPoint.y;
-			vanishOffset += vanishingPoint.y;
-		}
-		else
-		{
-			vanishOffset = 0;
+			sectionOffset = intersection.y;
 		}
 
 		// get road shape
-		roadShape = getRoadShape(sectionFrame, houghMainLines[0], houghMainLines[1], vanishingPoint);
-	}
-	else
-	{
-		vanishOffset = 0;
+		roadShape = getRoadShape(rawFrame, houghMainLines[0], houghMainLines[1], vanishingPoint);
 	}
 
-	cout << "Main Lines: " << endl;
-	cout << houghMainLines[0].pt1.x << "," << houghMainLines[0].pt1.y << " " << houghMainLines[0].pt2.x << "," << houghMainLines[0].pt2.y << endl;
-	cout << houghMainLines[1].pt1.x << "," << houghMainLines[1].pt1.y << " " << houghMainLines[1].pt2.x << "," << houghMainLines[1].pt2.y << endl;
-	cout << endl;
+	// limit lines
+	houghLines = getLimitedLines(houghLines, sectionOffset);
+	houghMainLines = getLimitedLines(houghMainLines, sectionOffset);
 
 	// drawing frame and vehicles
-	rawFrame.copyTo(tmpFrame);
-	drawingFrame = tmpFrame(CvRect(0, sectionOffset, contoursFrame.cols, contoursFrame.rows - sectionOffset));
+	drawingFrame = rawFrame(CvRect(0, sectionOffset, contoursFrame.cols, contoursFrame.rows - sectionOffset));
 	vehicles = getVehicles(drawingFrame);
 
 	// drawing process
-	drawLines(drawingFrame, houghLines, Scalar(0, 0, 255), 2, 0);
-	drawLines(drawingFrame, houghMainLines, Scalar(20, 125, 255), 2, 0);
-	drawRoadShape(drawingFrame, roadShape, Scalar(20, 125, 255), 0.3, 0);
-	combineWithSection(rawFrame, drawingFrame, vanishingPoint.y, sectionOffset);
-	drawCircle(rawFrame, vanishingPoint, Scalar(20, 125, 255), 15, -1, vanishOffset);
+	drawLines(rawFrame, houghLines, Scalar(0, 0, 255), 2, 0);
+	drawLines(rawFrame, houghMainLines, Scalar(20, 125, 255), 2, 0);
+	drawRoadShape(rawFrame, roadShape, Scalar(20, 125, 255), 0.3, 0);
+	drawCircle(rawFrame, vanishingPoint, Scalar(20, 125, 255), 15, -1, 0);
 	drawRects(rawFrame, vehicles, Scalar(255, 0, 0), 1, sectionOffset);
 
 	return rawFrame;
@@ -337,6 +326,32 @@ Point RoadDetection::getLineIntersection(Line l1, Line l2)
 	Point interPoint = Point((int)interX, (int)interY);
 
 	return interPoint;
+}
+
+vector<Line> RoadDetection::getLimitedLines(vector<Line> lines, int offset)
+{
+	vector<Line> output;
+
+	for (size_t i = 0; i < lines.size(); i++)
+	{
+		Line line = lines[i];
+		int newX = (int)((offset - line.intercept) / line.slope);
+
+		if (line.slope < 0)// /.
+		{
+			line.pt2.x = newX;
+			line.pt2.y = offset;
+		}
+		else // \.
+		{
+			line.pt1.x = newX;
+			line.pt1.y = offset;
+		}
+
+		output.push_back(line);
+	}
+
+	return output;
 }
 
 /********************************************************************
@@ -643,15 +658,29 @@ vector<Point> RoadDetection::getRoadShape(Mat screen, Line l1, Line l2, Point in
  */
 vector<Rect> RoadDetection::getVehicles(Mat frame)
 {
-	Mat equalizedFrame;
+	Mat copy, equalizedFrame;
 	CascadeClassifier vehiclesCascade;
 	vector<Rect> vehicles;
 
-	cvtColor(frame, equalizedFrame, CV_BGR2GRAY);
+	frame.copyTo(copy);
+
+	cvtColor(copy, equalizedFrame, CV_BGR2GRAY);
 	equalizeHist(equalizedFrame, equalizedFrame);
 
 	vehiclesCascade.load(CLASSIFIER_PATH);
 	vehiclesCascade.detectMultiScale(equalizedFrame, vehicles, CASCADE_SCALE, CASCADE_MIN_NEIGHBORS, 0 | CASCADE_SCALE_IMAGE, Size(CASCADE_MIN_SIZE, CASCADE_MAX_SIZE));
 
 	return vehicles;
+}
+
+vector<Line> RoadDetection::shiftLines(vector<Line> lines, int shift)
+{
+	for (size_t i = 0; i < lines.size(); i++)
+	{
+		lines[i].pt1.y += shift;
+		lines[i].pt2.y += shift;
+		lines[i].intercept += shift;
+	}
+
+	return lines;
 }

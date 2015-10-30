@@ -16,12 +16,11 @@ class RoadDetection
 private:
 	Mat original;
 	Point previousVanishingPoint;
-	int previousOffset;
 	vector<Line> previousLines;
 
 	int BLUR_KERNEL = 5;
 	int CANNY_MIN_THRESH = 50, CANNY_MAX_THRESH = 200;
-	int HOUGH_DEFAULT_THRESH = 90, HOUGH_MIN_THRESH = 200, HOUGH_MIN_LINES = 5;
+	int HOUGH_DEFAULT_THRESH = 175, HOUGH_MIN_THRESH = 200, HOUGH_MIN_LINES = 5;
 	int HOUGH_PROB_THRESH = 120, HOUGH_PROB_MIN_LINE_LENGTH = 80, HOUGH_PROB_MAX_LINE_GAP = 50;
 	int CASCADE_MIN_NEIGHBORS = 2, CASCADE_MIN_SIZE = 30, CASCADE_MAX_SIZE = 30;
 	int LINE_DIST_MAX_DIFF = 20;
@@ -42,6 +41,7 @@ private:
 	vector<Line> getHoughProbLines(Mat frame);
 	vector<Line> getFilteredLines(vector<Line> lines);
 	vector<Line> getLimitedLines(vector<Line> lines, int offset);
+	vector<Line> shiftLines(vector<Line> lines, int shift);
 	vector<Point> getRoadShape(Mat screen, Line l1, Line l2, Point inter);
 	vector<Rect> getVehicles(Mat frame);
 

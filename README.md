@@ -10,10 +10,10 @@ Further info can be found in the [full report](Docs/report.pdf).
 
 ## Examples
 
-![example](Docs/example2.png)
-![example](Docs/example1.png)
-![example](Docs/example3.png)
-![example](Docs/example6.png)
+<img src="Docs/example2.png" width="650">
+<img src="Docs/example1.png" width="650">
+<img src="Docs/example3.png" width="650">
+<img src="Docs/example6.png" width="650">
 
 Additional examples can be found in the Docs folder and in the [annex](Docs/annex.pdf).
 
@@ -25,7 +25,7 @@ Additional examples can be found in the Docs folder and in the [annex](Docs/anne
 RoadDetection.exe -method -filepath
 ```
 
-The available methods are image(1) and video(2). The base path is *../Assets/.* Files should be moved to the Assets folder in order to tested. For example, in order to use the file *sample.png* inside the Assets folder, the program would be invoked as:
+The available methods are image(1) and video(2). The base path is *../Assets/.* Files should be moved to the Assets folder in order to be tested. For example, in order to use the file *sample.png* inside the Assets folder, the program would be invoked as:
 
 ```
 RoadDetection.exe 1 sample.png
